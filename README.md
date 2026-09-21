@@ -79,6 +79,22 @@ Hệ quả là các mô hình AI thị giác tiêu chuẩn (vốn được huấ
 [Ảnh Đầu Ra: Bounding Boxes + Class Labels + Confidence Scores]
 ```
 
+### 2.1. Nguồn Dữ Liệu Thực Nghiệm (Dataset Access Links)
+Để phục vụ xuyên suốt cho cả **Giai đoạn 1 (tăng cường ảnh không giám sát)** và **Giai đoạn 2 (huấn luyện & đánh giá YOLOv8)**, đề tài sử dụng bộ dữ liệu chuẩn quốc tế **ExDark (Exclusively Dark)**. Các liên kết truy cập và tải dữ liệu chính thức:
+
+* **Link 1 (Kaggle Dataset - Chuẩn hóa sẵn format YOLOv8):**  
+  👉 [ExDark Dataset trên Kaggle (xhlulu/exdark-dataset)](https://www.kaggle.com/datasets/xhlulu/exdark-dataset)  
+  *Cú pháp tải nhanh qua Kaggle API:*  
+  ```bash
+  kaggle datasets download -d xhlulu/exdark-dataset
+  ```
+* **Link 2 (Roboflow Universe - Chuẩn hóa nhãn & Train/Val/Test Split):**  
+  👉 [ExDark trên Roboflow Universe](https://universe.roboflow.com/search?q=exdark)  
+  *(Hỗ trợ tải 1-click hoặc xuất code nạp trực tiếp vào Google Colab)*
+* **Link 3 (GitHub Tác Giả Gốc - Bộ Dữ Liệu Gốc & Metadata):**  
+  👉 [ExDark Official Repository (cs-chan/ExDark-Dataset)](https://github.com/cs-chan/ExDark-Dataset)  
+  *(Chứa 7,363 ảnh gốc, nhãn Bounding Box gốc và tài liệu công bố khoa học)*
+
 ---
 
 ## 3. Kiến trúc Mô hình GĐ1: Deep Learning Zero-DCE / Zero-DCE++
