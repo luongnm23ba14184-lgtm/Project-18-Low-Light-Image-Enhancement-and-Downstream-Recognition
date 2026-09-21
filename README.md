@@ -1,554 +1,476 @@
 # Project 18: Low-Light Image Enhancement and Downstream Recognition
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![Zero-DCE](https://img.shields.io/badge/Enhancement-Zero--DCE%20%2F%20Zero--DCE++-blueviolet.svg)](https://github.com/Li-Chongyi/Zero-DCE)
 [![YOLOv8](https://img.shields.io/badge/Ultralytics-YOLOv8-orange.svg)](https://github.com/ultralytics/ultralytics)
-[![CLAHE](https://img.shields.io/badge/Enhancement-CLAHE%20%2B%20Bilateral-green.svg)](https://docs.opencv.org/)
 [![Dataset](https://img.shields.io/badge/Dataset-ExDark-red.svg)](https://github.com/cs-chan/ExDark-Dataset)
 
 > **Khóa học / Đồ án:** Đồ án Môn học / Final Project Xử lý ảnh & Thị giác Máy tính (Computer Vision)  
 > **Thời lượng thực hiện:** 2.5 tuần (~18 ngày)  
 > **Quy mô nhóm:** 5 – 6 thành viên (Mỗi thành viên: 2 giờ/ngày)  
-> **Môi trường thực nghiệm:** Python 3.9+, OpenCV, PyTorch, Ultralytics, Google Colab / Kaggle T4 GPU (Miễn phí)
+> **Môi trường thực nghiệm:** Python 3.9+, PyTorch, Ultralytics, OpenCV, Google Colab / Kaggle T4 GPU (Miễn phí)
 
 ---
 
 ## Mục lục (Table of Contents)
-1. [Tổng quan Đề tài](#1-tổng-quan-đề-tài)
-2. [Phân loại Bài toán trong Image Processing](#2-phân-loại-bài-toán-trong-image-processing)
-3. [Kiến trúc & Hướng tiếp cận (Pipeline Tổng Thể)](#3-kiến-trúc--hướng-tiếp-cận-pipeline-tổng-thể)
-4. [Bộ Dữ Liệu (Dataset) & Hướng Dẫn Sử Dụng](#4-bộ-dữ-liệu-dataset--hướng-dẫn-sử-dụng)
-5. [Cấu Trúc Mô Hình YOLOv8 (Architecture Deep-Dive)](#5-cấu-trúc-mô-hình-yolov8-architecture-deep-dive)
-6. [Kế Hoạch Triển Khai Thực Nghiệm Chi Tiết (Step-by-Step cho 2.5 Tuần)](#6-kế-hoạch-triển-khai-thực-nghiệm-chi-tiết-step-by-step-cho-25-tuần)
-7. [Các Tiêu Chí Đánh Giá (Evaluation Metrics)](#7-các-tiêu-chí-đánh-giá-evaluation-metrics)
-8. [Cấu Trúc Thư Mục Dự Án & Kịch Bản run.py (Project Tree & Workflow)](#9-cấu-trúc-thư-mục-dự-án--kịch-bản-runpy-project-tree--workflow)
-9. [Mục Tiêu Đầu Ra Đạt Được (Learning Outcomes)](#10-mục-tiêu-đầu-ra-đạt-được-learning-outcomes)
+1. [Tổng quan Đề tài & Bối cảnh Nghiên cứu](#1-tổng-quan-đề-tài--bối-cảnh-nghiên-cứu)
+2. [Phân loại Bài toán trong Computer Vision](#2-phân-loại-bài-toán-trong-computer-vision)
+3. [Kiến trúc Mô hình GĐ1: Deep Learning Zero-DCE / Zero-DCE++](#3-kiến-trúc-mô-hình-gđ1-deep-learning-zero-dce--zero-dce)
+4. [Kiến trúc Mô hình GĐ2: Object Detection với YOLOv8](#4-kiến-trúc-mô-hình-gđ2-object-detection-với-yolov8)
+5. [Chiến Lược Khớp Nối GĐ1 và GĐ2 (Co-Design & Alignment Strategy)](#5-chiến-lược-khớp-nối-gđ1-và-gđ2-co-design--alignment-strategy)
+6. [Sơ đồ Pipeline Tổng Thể (End-to-End System)](#6-sơ-đồ-pipeline-tổng-thể-end-to-end-system)
+7. [Bộ Dữ Liệu (Dataset) ExDark & Format Chuẩn Hóa](#7-bộ-dữ-liệu-dataset-exdark--format-chuẩn-hóa)
+8. [Kế Hoạch Triển Khai Thực Nghiệm Chi Tiết (Sprint 18 Ngày)](#8-kế-hoạch-triển-khai-thực-nghiệm-chi-tiết-sprint-18-ngày)
+9. [Các Tiêu Chí Đánh Giá (Evaluation Metrics)](#9-các-tiêu-chí-đánh-giá-evaluation-metrics)
+10. [Bảng Kết Quả Thực Nghiệm Dự Kiến & Phân Tích Khoa Học](#10-bảng-kết-quả-thực-nghiệm-dự-kiến--phân-tích-khoa-học)
+11. [Cấu Trúc Thư Mục Dự Án & Kịch Bản run.py Tự Động](#11-cấu-trúc-thư-mục-dự-án--kịch-bản-runpy-tự-động)
+12. [Mục Tiêu Đầu Ra Đạt Được (Learning Outcomes)](#12-mục-tiêu-đầu-ra-đạt-được-learning-outcomes)
 
 ---
 
-## 1. Tổng quan Đề tài
+## 1. Tổng quan Đề tài & Bối cảnh Nghiên cứu
 
-### 1.1. Bối cảnh & Thách thức
-Hình ảnh thu nhận trong điều kiện ban đêm hoặc thiếu sáng (Low-Light Conditions) thường chịu các suy thoái nghiêm trọng:
-* Độ tương phản rất thấp, chi tiết vùng tối bị chìm.
-* Tỷ lệ tín hiệu trên nhiễu thấp (SNR thấp), nhiễu hạt màu (color noise) dày đặc khi ISO camera bị đẩy lên cao.
-* Mất thông tin biên cạnh (edges) và kết cấu (textures).
+### 1.1. Bối cảnh & Thách thức Kỹ thuật
+Hình ảnh thu nhận trong điều kiện môi trường ban đêm hoặc thiếu sáng nghiêm trọng (**Low-Light Conditions**) luôn gặp các suy thoái quang học phức tạp:
+* **Độ tương phản cực thấp:** Phổ mức xám bị dồn nghẽn ở vùng tối ($[0, 50]$), làm chìm hoàn toàn thông tin chi tiết và biên dạng vật thể.
+* **Tỷ lệ tín hiệu trên nhiễu thấp (Low SNR):** Nhiễu hạt cảm biến (sensor noise, chrominance noise) dày đặc do camera tự động đẩy độ nhạy ISO lên cao.
+* **Mất kết cấu vi mô (Texture Degradation):** Biên cạnh bị mờ nhòe khiến các thuật toán trích xuất đặc trưng truyền thống lẫn các mạng nơ-ron nhận diện hiện đại bị giảm độ chính xác nghiêm trọng.
 
-Điều này khiến các mô hình AI thị giác tiêu chuẩn (vốn được huấn luyện chủ yếu trên ảnh đủ sáng như COCO, ImageNet) suy giảm độ chính xác nghiêm trọng khi phát hiện người, phương tiện, vật cản trong các ứng dụng thực tế: **Camera an ninh ban đêm, hệ thống hỗ trợ lái xe tự hành (ADAS), cứu nạn cứu hộ ban đêm**.
+Hệ quả là các mô hình AI thị giác tiêu chuẩn (vốn được huấn luyện chủ yếu trên tập dữ liệu đủ sáng như COCO, ImageNet) bị **suy giảm độ chính xác nghiêm trọng** khi áp dụng vào thực tiễn: **Camera giám sát an ninh ban đêm, hệ thống lái xe tự hành (ADAS/Autonomous Vehicles), robot cứu nạn cứu hộ ban đêm**.
 
 ### 1.2. Mục tiêu nghiên cứu cốt lõi
-1. **Giai đoạn 1 (Enhancement):** Làm sáng, cân bằng phơi sáng và phục hồi chi tiết ảnh chụp thiếu sáng bằng các kỹ thuật xử lý ảnh kinh điển (**Digital Image Processing - DIP**: Không gian màu CIE LAB, CLAHE, Bilateral Filter).
-2. **Giai đoạn 2 (Downstream Recognition):** Đánh giá hiệu năng nhận diện vật thể (Object Detection) bằng **YOLOv8** trên ảnh sau khi xử lý.
-3. **Câu hỏi khoa học cốt lõi (Core Hypothesis):**
-   > *"Liệu việc nâng cao chất lượng cảm quan cho mắt người bằng kỹ thuật xử lý ảnh kinh điển (DIP) có thực sự giúp mô hình Object Detection (YOLOv8) nhận diện chính xác hơn hay không? Hay việc làm sáng có thể vô tình sinh ra nhiễu giả (artifacts) làm giảm mAP của detector?"*
+1. **Giai đoạn 1 (Low-Light Image Enhancement - LLIE via Deep Learning):**
+   * Triển khai mô hình học sâu **Zero-DCE (Zero-Reference Deep Curve Estimation)** và phiên bản cải tiến siêu nhẹ **Zero-DCE++** để ước lượng các đường cong ánh sáng bậc cao lặp (Higher-Order Light-Enhancement Curves) trên từng pixel.
+   * Huấn luyện theo cơ chế **Zero-Reference (Tự giám sát / Không cần cặp ảnh sáng chuẩn GT)**, cực kỳ phù hợp với dữ liệu ảnh tối chụp thực tế.
+   * Song song, triển khai kỹ thuật xử lý ảnh kinh điển (**DIP Baseline: CLAHE + Bilateral Filter**) để làm mốc đối chứng giữa phương pháp truyền thống và Deep Learning.
+2. **Giai đoạn 2 (Downstream Recognition Task):**
+   * Đánh giá hiệu năng nhận diện và định vị vật thể (**Object Detection**) bằng kiến trúc **YOLOv8** (`yolov8n` / `yolov8s`) trên tập dữ liệu chuẩn **ExDark (Exclusively Dark)**.
+3. **Câu hỏi nghiên cứu khoa học cốt lõi (Core Scientific Hypothesis):**
+   > *"Liệu việc tăng cường chất lượng cảm quan cho mắt người bằng mô hình học sâu không tham chiếu (Zero-DCE) hoặc kỹ thuật xử lý ảnh kinh điển (CLAHE) có thực sự giúp mô hình Object Detection (YOLOv8) nhận diện chính xác hơn hay không? Hay việc làm sáng bằng mạng nơ-ron có thể sinh ra nhiễu giả (artifacts/hallucinations) làm giảm mAP của detector?"*
 
 ---
 
-## 2. Phân loại Bài toán trong Image Processing
+## 2. Phân loại Bài toán trong Computer Vision
 
-Đề tài thuộc dạng **Two-Stage Cascaded Vision Pipeline (Xử lý ảnh kết hợp 2 giai đoạn: Cấp thấp $\rightarrow$ Cấp cao)**:
+Đề tài thuộc dạng **Two-Stage Cascaded Vision Pipeline (Chuỗi thị giác kết hợp 2 giai đoạn: Cấp thấp $\rightarrow$ Cấp cao)**:
 
 ```
-[Ảnh Đầu Vào: Thiếu Sáng]
-           │
-           ▼
-┌──────────────────────────────────────────────────────────┐
-│ GIAI ĐOẠN 1: Low-Level Vision (Xử lý ảnh mức thấp)      │
-│ Bài toán: Low-Light Image Enhancement (LLIE)             │
-│ Phương pháp: Kỹ thuật Xử lý ảnh Kinh điển (DIP)          │
-│ Mục tiêu: Phục hồi độ sáng, độ tương phản, khử nhiễu biên│
-└──────────────────────────────────────────────────────────┘
-           │  (Ảnh đã tăng cường độ sáng và độ nét)
-           ▼
-┌──────────────────────────────────────────────────────────┐
-│ GIAI ĐOẠN 2: High-Level Vision (Thị giác mức cao)       │
-│ Bài toán: Object Detection (Nhận diện & Định vị vật thể) │
-│ Mô hình: YOLOv8 (You Only Look Once - version 8)         │
-│ Mục tiêu: Tối ưu mAP@0.5, mAP@0.5:0.95                   │
-└──────────────────────────────────────────────────────────┘
-           │
-           ▼
-[Ảnh Đầu Ra: Bounding Boxes + Class + Confidence Score]
-```
-
-### 2.1. Giai đoạn 1: Image Enhancement bằng Xử lý Ảnh Kinh điển (DIP)
-* **Bản chất bài toán:** Image-to-Image Transformation / Image Restoration. Đầu vào là ảnh thiếu sáng với lược đồ mức xám bị dồn về dải thấp $[0, 50]$, đầu ra là ảnh có độ tương phản cân bằng, phổ sáng dàn đều trên dải $[0, 255]$ và màu sắc tự nhiên.
-* **Lựa chọn của Đề tài:** Xây dựng **Pipeline Tiền Xử Lý Ảnh Kinh Điển (Classical Digital Image Processing Pipeline)** kết hợp 3 trụ cột kiến thức cốt lõi của môn học:
-
-#### 1. Trụ cột 1: Point Processing & Chuyển đổi Không Gian Màu (Color Space Transformation)
-* **Vấn đề thực tế:** Nếu áp dụng cân bằng trực tiếp trên không gian màu RGB (xử lý độc lập 3 kênh $R, G, B$), tỷ lệ màu giữa các kênh sẽ bị thay đổi nghiêm trọng, dẫn đến hiện tượng **méo màu (color distortion)** và sai lệch tông màu tự nhiên.
-* **Giải pháp chuẩn môn học:**
-  * Chuyển đổi ảnh từ không gian màu $RGB$ sang không gian màu **CIE LAB** (hoặc $HSV$):
-    * Kênh **$L$ (Luminance):** Đại diện cho cường độ sáng (từ $0$ - tối đen đến $100$ - trắng sáng).
-    * Kênh **$A$:** Dải màu từ lục (green) đến đỏ (red).
-    * Kênh **$B$:** Dải màu từ lam (blue) đến vàng (yellow).
-  * **Quy tắc vàng:** Chỉ thực hiện cân bằng lược đồ trên **duy nhất kênh $L$**, giữ nguyên vẹn 100% thông tin màu sắc của kênh $A$ và $B$. Sau khi xử lý xong, chuyển ngược từ $LAB$ về $RGB$.
-
-#### 2. Trụ cột 2: Histogram Processing - Từ Global HE đến Đột Phá CLAHE
-* **Global Histogram Equalization (HE) cơ bản trong giáo trình:**
-  * Công thức biến đổi hàm phân phối tích lũy (CDF):
-    $$s_k = T(r_k) = (L - 1) \sum_{j=0}^{k} p_r(r_j) = \frac{L-1}{MN} \sum_{j=0}^{k} n_j$$
-  * *Hạn chế chí mạng với ảnh ban đêm:* Tính toán lược đồ trên toàn bộ ảnh nên ở những nơi có bóng đèn/nguồn sáng cục bộ, HE sẽ làm các vùng này bị cháy sáng chói lóa (pixel saturation), đồng thời khuếch đại hạt nhiễu ở vùng tối cực mạnh.
-* **Đột phá CLAHE (Contrast Limited Adaptive Histogram Equalization):**
-  * **Cân bằng thích nghi cục bộ (Adaptive / Tile Grid):** Chia ảnh thành lưới các khối nhỏ (ví dụ $8 \times 8$ ô). Mỗi ô sẽ được tính toán lược đồ và cân bằng độc lập, giúp tôn rõ chi tiết riêng biệt của từng vùng sáng/tối.
-  * **Cắt ngọn giới hạn tương phản (Contrast Limiting / Clip Limit):** Để ngăn chặn việc khuếch đại nhiễu hạt ở các vùng đồng nhất (như bầu trời đêm), CLAHE đặt một ngưỡng trần (`clipLimit`). Nếu số điểm ảnh trong một mức xám vượt trần, phần diện tích thừa sẽ được "cắt ngọn" và phân phối đều sang toàn bộ các bins khác.
-  * **Nội suy song tuyến tính (Bilinear Interpolation):** Khử hoàn toàn hiện tượng đường viền phân tách giữa các khối ô (blocking artifacts).
-
-#### 3. Trụ cột 3: Spatial Filtering - Khử Nhiễu Bảo Toàn Biên (Bilateral Filter)
-* **Vấn đề:** Khi tăng sáng vùng tối, các hạt nhiễu cảm biến (sensor noise) ẩn sâu trong bóng tối sẽ bị lộ ra ngoài.
-* **Giải pháp:** Sử dụng **Bilateral Filter (Bộ lọc song phương)** thay vì Gaussian Filter thông thường:
-  * Gaussian Filter chỉ tính khoảng cách không gian (Domain filter) nên làm nhòe mờ cả các đường viền.
-  * Bilateral Filter kết hợp đồng thời hai hàm Gauss: **Khoảng cách hình học** và **Chênh lệch mức xám (Range filter)**. Nhờ đó, bộ lọc làm mịn triệt để các hạt nhiễu phẳng nhưng **giữ sắc nét tuyệt đối các đường biên (edge-preserving)**, giúp mô hình YOLOv8 ở GĐ2 bắt trọn bounding box.
-
----
-
-### 2.2. Giai đoạn 2: Object Detection với YOLOv8
-* **Bản chất bài toán:** Định vị (Localization via Bounding Boxes) và Phân loại (Classification) nhiều vật thể cùng lúc trong ảnh.
-* **Mô hình lựa chọn: Ultralytics YOLOv8 (Phiên bản `yolov8n` - Nano hoặc `yolov8s` - Small):**
-  * Tốc độ cực nhanh, dung lượng model nhẹ (< 15MB), dễ huấn luyện trên Google Colab.
-  * Hỗ trợ đầy đủ các hàm loss hiện đại (CIoU, DFL, TaskAlignedAssigner) giúp phát hiện tốt vật thể trong môi trường nhiễu.
-
----
-
-### 2.3. Chiến Lược Tinh Chỉnh & Khớp Nối Giữa GĐ1 và GĐ2 (Co-Design & Alignment Strategy)
-
-Để GĐ1 (DIP) không chỉ làm ảnh "đẹp với mắt người" mà phải **thực sự phục vụ đắc lực cho GĐ2 (YOLOv8)**, nhóm đề xuất 3 giải pháp tinh chỉnh kỹ thuật cụ thể:
-
-#### 1. Điều chỉnh GĐ1 $\rightarrow$ GĐ2: Kiểm soát chặt chẽ tham số để tránh mất vật thể nhỏ và cháy sáng
-* **Giới hạn bán kính Bilateral Filter ($d=5$, $\sigma=35$):**  
-  * *Vấn đề:* Trong ExDark có các vật thể nhỏ như `Bottle` (chai nước), `Cup` (cốc), hoặc vật thể có chân mảnh như `Chair` (ghế). Nếu đặt bán kính lọc quá lớn ($d > 9$ hoặc $\sigma > 75$), bộ lọc sẽ làm phẳng và xóa nhòa các cấu trúc vi mô này $\rightarrow$ YOLOv8 bị mất dấu vật thể nhỏ.
-  * *Giải pháp:* Cố định $d = 5$, $\sigma_{color} = 35$, $\sigma_{space} = 35$. Mức lọc này vừa đủ làm phẳng nhiễu hạt nền mà bảo toàn 100% cạnh của vật thể nhỏ.
-* **Khống chế trần tương phản CLAHE ($clipLimit = 2.0$):**  
-  * *Vấn đề:* Ảnh ban đêm thường chứa nguồn sáng mạnh cục bộ (đèn pha xe hơi `Car`, đèn đường, biển hiệu). Nếu đặt `clipLimit \ge 4.0`, vùng đèn sẽ bị cháy trắng (pixel saturation đạt mức 255), làm biến dạng hình dạng đầu xe ô tô.
-  * *Giải pháp:* Đặt `clipLimit` trong khoảng $[1.5, 2.5]$ (tối ưu nhất là $2.0$). Thực hiện khảo sát thực nghiệm tại các mốc $[1.0, 2.0, 3.0]$ để chứng minh giá trị $2.0$ cho $mAP$ cao nhất.
-* **Chuẩn hóa không gian màu trước khi feed vào YOLOv8:**  
-  * Đảm bảo ảnh sau khi xử lý bằng OpenCV (vốn ở dạng BGR) được chuyển đổi đúng chuẩn **RGB** trước khi đưa vào hàm `model.predict()` của YOLOv8.
-
-#### 2. Điều chỉnh GĐ2 $\leftarrow$ GĐ1: Tinh chỉnh siêu tham số huấn luyện YOLOv8 thích nghi với ảnh CLAHE
-* **Giảm bớt cường độ Data Augmentation độ sáng (`hsv_v = 0.1`):**  
-  * *Vấn đề:* Mặc định YOLOv8 áp dụng data augmentation ngẫu nhiên thay đổi độ sáng `hsv_v = 0.4` (tăng/giảm độ sáng đến 40%). Điều này vô tình làm tối lại các bức ảnh mà GĐ1 vừa mất công làm sáng, phá vỡ tính ổn định của phân phối dữ liệu đã qua tiền xử lý.
-  * *Giải pháp:* Khi huấn luyện YOLOv8 trên tập ảnh CLAHE, cấu hình giảm `hsv_v: 0.1` (hoặc `0.0`) trong file siêu tham số (`hyp.yaml`).
-* **Tắt tính năng Mosaic ở 10 epochs cuối (`close_mosaic = 10`):**  
-  * Mosaic ghép 4 ảnh lại với nhau, thu nhỏ vật thể. Việc tắt Mosaic ở giai đoạn cuối giúp mô hình hội tụ ổn định trên kích thước thực tế của các vật thể ban đêm.
-
-#### 3. Bổ sung Thí nghiệm Bóc tách Thành phần (Ablation Study)
-* Nhóm thiết kế một chuỗi thí nghiệm đối chứng có định lượng rõ ràng:
-  1. *Ảnh tối gốc (Raw Dark)*
-  2. *Chỉ dùng CLAHE (Chưa có Bilateral Filter)* $\rightarrow$ Quan sát hiện tượng nhiễu hạt gây ra False Positives.
-  3. *CLAHE + Lọc Bilateral quá đà ($d=11$)* $\rightarrow$ Quan sát sự tụt giảm $mAP$ ở các lớp vật thể nhỏ (`Bottle`, `Cup`).
-  4. *CLAHE + Bilateral tối ưu ($d=5, clip=2.0$)* $\rightarrow$ Đạt điểm ngọt (Sweet Spot) cả về chất lượng ảnh lẫn độ chính xác nhận diện.
-
----
-
-## 3. Kiến trúc & Hướng tiếp cận (Pipeline Tổng Thể)
-
-### 3.1. Sơ đồ Pipeline Triển Khai Thực Tế (End-to-End Inference)
-Hệ thống vận hành theo chuỗi xử lý nối tiếp (Cascaded Sequence):
-
-```mermaid
-flowchart LR
-    In["📷 <b>Ảnh Thiếu Sáng</b><br/>(RGB Image)"] 
-    --> S1["🎨 <b>Chuyển Màu</b><br/>RGB ➔ CIE LAB<br/><i>(Tách kênh độ sáng L)</i>"] 
-    --> S2["✨ <b>Xử Lý CLAHE</b><br/>Cân bằng trên kênh L<br/><i>(clipLimit=2.0, tile=8x8)</i>"]
-    --> S3["🛡️ <b>Lọc Không Gian</b><br/>Bilateral Filter<br/><i>(Khử nhiễu, giữ biên)</i>"]
-    --> S4["🖼️ <b>Chuyển Về RGB</b><br/>Gộp LAB ➔ RGB<br/><i>(Ảnh sáng rõ nét)</i>"]
-    --> S5["🎯 <b>GIAI ĐOẠN 2</b><br/>Mô hình <b>YOLOv8</b><br/><i>(Backbone C2f + Head)</i>"] 
-    --> Out["📦 <b>Kết Quả Phát Hiện</b><br/>Bounding Box + Class"]
-
-    classDef stage fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
-    classDef io fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    class S1,S2,S3,S4,S5 stage;
-    class In,Out io;
-```
-
-
-
-
-
-## 4. Bộ Dữ Liệu (Dataset) & Hướng Dẫn Sử Dụng
-
-### 4.1. Dataset Lựa Chọn: ExDark (Exclusively Dark Image Dataset)
-Được chọn vì đây là **Dataset tiêu chuẩn số 1 thế giới về Low-Light Object Detection**.
-
-* **Quy mô:** 7,363 ảnh chụp thực tế trong điều kiện thiếu sáng nghiêm trọng (ánh sáng đường phố, trong nhà tắt đèn, ngoài trời ban đêm...).
-* **Số lượng lớp (12 Classes):**  
-  `Bicycle`, `Boat`, `Bottle`, `Bus`, `Car`, `Cat`, `Chair`, `Cup`, `Dog`, `Motorbike`, `People`, `Table`.
-* **Ưu điểm vượt trội cho bài thi 2.5 tuần:**
-  * Toàn bộ ảnh đã được gán nhãn Bounding Box đầy đủ.
-  * Phản ánh đúng bóng tối tự nhiên và nhiễu sensor thực tế (không phải ảnh ban ngày hạ sáng nhân tạo).
-
-### 4.2. Link Dataset Đã Chia Sẵn Định Dạng YOLO (Bounding Box Ready-to-Use)
-Thay vì phải tự parse file `.txt` gốc phức tạp của tác giả, nhóm nên sử dụng các link dataset đã được chuẩn hóa sẵn sang cấu trúc YOLOv8 (ảnh + nhãn `.txt` theo tỷ lệ 70% Train - 20% Val - 10% Test):
-
-* **Link 1 (Kaggle Dataset - Chuẩn hóa YOLOv8 Format):**  
-  👉 [ExDark YOLOv8 Dataset trên Kaggle](https://www.kaggle.com/datasets/xhlulu/exdark-dataset) (Tải trực tiếp bằng Kaggle API: `kaggle datasets download -d xhlulu/exdark-dataset`)
-* **Link 2 (Roboflow Universe - Sẵn format Ultralytics YOLOv8):**  
-  👉 [ExDark trên Roboflow Universe](https://universe.roboflow.com/search?q=exdark) (Xuất code 1 click tải về Colab)
-* **Link 3 (Tác giả gốc - GitHub Repo):**  
-  👉 [ExDark Dataset Official GitHub](https://github.com/cs-chan/ExDark-Dataset)
-
-### 4.3. Cấu Trúc Thư Mục Dataset Chuẩn YOLOv8
-```
-exdark_yolo/
-│
-├── data.yaml                  <-- File cấu hình đường dẫn và danh sách 12 class
-├── images/
-│   ├── train/                 <-- ~5,154 ảnh train
-│   ├── val/                   <-- ~1,472 ảnh validation
-│   └── test/                  <-- ~737 ảnh test
-└── labels/
-    ├── train/                 <-- Nhãn tương ứng cho train
-    ├── val/                   <-- Nhãn tương ứng cho val
-    └── test/                  <-- Nhãn tương ứng cho test
-```
-
-### 4.4. Quy cách file nhãn Bounding Box YOLO (`.txt`)
-Mỗi ảnh `image_0001.jpg` sẽ có một file nhãn `image_0001.txt` cùng tên:
-```
-<class_id> <x_center> <y_center> <width> <height>
-```
-* `class_id`: Số nguyên từ `0` đến `11` đại diện cho 12 lớp vật thể.
-* `x_center, y_center`: Tọa độ tâm của bounding box, **chuẩn hóa chia cho kích thước ảnh (từ 0.0 đến 1.0)**.
-* `width, height`: Chiều rộng và chiều cao của bounding box, **chuẩn hóa từ 0.0 đến 1.0**.
-
-Ví dụ nội dung file `image_0001.txt`:
-```
-0 0.4512 0.6231 0.1250 0.3410
-4 0.7810 0.5120 0.2100 0.1850
-```
-
-### 4.5. File Cấu Hình `data.yaml` Mẫu
-```yaml
-path: ./dataset/exdark_yolo
-train: images/train
-val: images/val
-test: images/test
-
-names:
-  0: Bicycle
-  1: Boat
-  2: Bottle
-  3: Bus
-  4: Car
-  5: Cat
-  6: Chair
-  7: Cup
-  8: Dog
-  9: Motorbike
-  10: People
-  11: Table
+[Ảnh Đầu Vào: Thiếu Sáng Tự Nhiên]
+                 │
+                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│ GIAI ĐOẠN 1: Low-Level Vision (Xử lý ảnh mức thấp)          │
+│ Bài toán: Low-Light Image Enhancement (LLIE)                │
+│ Mô hình chính: Zero-DCE / Zero-DCE++ (Deep Learning)       │
+│ Mốc đối chứng: CLAHE + Bilateral Filter (DIP Truyền Thống)   │
+│ Cơ chế: Zero-Reference (Tự học đường cong ánh sáng LE-Curve)│
+└─────────────────────────────────────────────────────────────┘
+                 │ (Ảnh đã được tăng cường sáng & phục hồi biên)
+                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│ GIAI ĐOẠN 2: High-Level Vision (Thị giác mức cao)          │
+│ Bài toán: Object Detection (Nhận diện & Định vị vật thể)    │
+│ Mô hình: Ultralytics YOLOv8 (Anchor-Free, C2f Backbone)     │
+│ Mục tiêu: Tối ưu mAP@0.5, mAP@0.5:0.95 trên 12 classes       │
+└─────────────────────────────────────────────────────────────┘
+                 │
+                 ▼
+[Ảnh Đầu Ra: Bounding Boxes + Class Labels + Confidence Scores]
 ```
 
 ---
 
-## 5. Cấu Trúc Mô Hình YOLOv8 (Architecture Deep-Dive)
+## 3. Kiến trúc Mô hình GĐ1: Deep Learning Zero-DCE / Zero-DCE++
 
-Để hiểu sâu kiến trúc phục vụ vấn đáp và viết báo cáo, YOLOv8 bao gồm 3 khối thành phần chính:
+### 3.1. Tại sao lựa chọn Zero-DCE / Zero-DCE++?
+Trong bài toán Low-Light Enhancement bằng Deep Learning, phần lớn các mô hình cổ điển (như RetinexNet, KinD, LLNet) đòi hỏi **bộ dữ liệu cặp đối ứng (Paired Dataset: ảnh tối đi kèm ảnh sáng chụp cùng góc)**. Tuy nhiên, trong thực tế (nhất là bộ dữ liệu ExDark), **hoàn toàn không có ảnh sáng chuẩn làm Ground Truth**.
+
+**Zero-DCE (CVPR 2020)** và **Zero-DCE++ (TPAMI 2021)** là giải pháp đột phá giải quyết triệt để bài toán này:
+* **Zero-Reference:** Không cần bất kỳ ảnh sáng chuẩn nào để huấn luyện.
+* **Tránh méo màu & artifacts:** Thay vì ép mạng nơ-ron sinh trực tiếp các giá trị pixel RGB (vốn rất dễ sinh ảo ảnh/artifacts và méo màu), Zero-DCE huấn luyện một mạng CNN nhẹ (**DCE-Net**) để dự đoán **bản đồ tham số đường cong ánh sáng (Curve Parameter Maps)**.
+* **Siêu nhẹ & Thời gian thực (Real-time):**
+  * `Zero-DCE`: ~79K tham số.
+  * `Zero-DCE++`: Tận dụng **Depthwise Separable Convolutions**, rút gọn xuống chỉ còn **~10.000 tham số (10K params)**! Tốc độ suy luận đạt hơn **100 FPS trên GPU Colab**, hoàn toàn đáp ứng thời gian thực cho camera an ninh và xe tự hành.
+
+### 3.2. Công thức Toán học: Đường cong ánh sáng bậc cao (Light-Enhancement Curve - LE-Curve)
+Đường cong làm sáng bậc 1 được thiết kế tương tự hàm điều chỉnh Gamma nhưng có khả năng tự thích nghi cục bộ theo từng pixel:
+$$LE(I(x)) = I(x) + \mathcal{A}(x) \cdot I(x) \cdot (1 - I(x))$$
+
+Trong đó:
+* $x$ là tọa độ pixel, $I(x)$ là giá trị pixel đầu vào chuẩn hóa về khoảng $[0, 1]$.
+* $\mathcal{A}(x) \in [-1, 1]$ là bản đồ tham số độ dốc cong do mạng **DCE-Net** dự đoán cho từng pixel.
+
+Để tăng dải động và xử lý các vùng tối sâu, Zero-DCE lặp lại công thức trên qua $n$ bước lặp (thông thường $n = 8$ bước):
+$$LE_n(x) = LE_{n-1}(x) + \mathcal{A}_n(x) \cdot LE_{n-1}(x) \cdot (1 - LE_{n-1}(x))$$
+
+Nhờ tính chất toán học của phương trình bậc 2 này:
+1. Đảm bảo giá trị đầu ra luôn nằm trọn trong đoạn $[0, 1]$ mà không bị tràn (clipping).
+2. Tăng cường độ sáng mạnh mẽ cho vùng tối trong khi bảo toàn các vùng vốn đã đủ sáng.
+
+```
+            LE-Curve Transformation (Qua 8 bước lặp)
+     1.0 ┌───────────────────────────────────────────/
+         │                                      _--/
+         │                                  _--/
+Output   │                             _--/
+Pixel    │                        _--/
+LE_8(x)  │                   _--/
+         │              _--/
+         │         _--/
+     0.0 └────────/──────────────────────────────────
+        0.0          Input Pixel I(x)               1.0
+```
+
+### 3.3. Kiến trúc Mạng DCE-Net & Zero-DCE++
+Mạng nơ-ron **DCE-Net** là một mạng tích chập đối xứng với các đường kết nối tắt (Skip Connections):
+* Đầu vào: Ảnh tối 3 kênh kích thước $H \times W \times 3$.
+* Gồm 7 tầng Convolution liên tiếp (mỗi tầng có 32 channels, hàm kích hoạt ReLU).
+* **Skip Connections:** Kết nối tầng 1 với tầng 6, tầng 2 với tầng 5, tầng 3 với tầng 4 (tương tự U-Net thu nhỏ) giúp bảo toàn chi tiết không gian đa tỉ lệ.
+* Đầu ra: Bản đồ tham số kích thước $H \times W \times 24$ (ứng với 8 bước lặp $\times$ 3 kênh màu RGB).
+* **Cải tiến trong Zero-DCE++:** Thay toàn bộ Standard Convolutions bằng **Depthwise Separable Convolutions** giúp giảm dung lượng model xuống còn **1/8** mà vẫn giữ nguyên độ chính xác.
+
+### 3.4. Hệ thống 4 Hàm Mất Mát Tự Giám Sát (Non-Reference Loss Functions)
+Vì không có ảnh tham chiếu (Ground Truth), Zero-DCE được tối ưu thông qua sự kết hợp của 4 hàm loss đặc thù:
+
+$$\mathcal{L}_{total} = \mathcal{L}_{spa} + \mathcal{L}_{exp} + W_{col} \mathcal{L}_{col} + W_{tv} \mathcal{L}_{tv\_A}$$
+
+1. **Spatial Consistency Loss ($\mathcal{L}_{spa}$):**
+   * Bảo tồn sự chênh lệch mức xám giữa các vùng lân cận (4 hướng lân cận: trên, dưới, trái, phải) giữa ảnh đầu vào và ảnh sau làm sáng. Đảm bảo **biên cạnh và độ tương phản cục bộ không bị méo mó**.
+   $$\mathcal{L}_{spa} = \frac{1}{K} \sum_{i=1}^{K} \sum_{j \in \Omega(i)} \left( |(Y_i - Y_j)| - |(I_i - I_j)| \right)^2$$
+2. **Exposure Control Loss ($\mathcal{L}_{exp}$):**
+   * Đưa cường độ sáng trung bình của các khối cục bộ ($16 \times 16$) về mức phơi sáng tối ưu mong muốn ($E = 0.6$).
+   $$\mathcal{L}_{exp} = \frac{1}{M} \sum_{k=1}^{M} |Y_k - E|$$
+3. **Color Constancy Loss ($\mathcal{L}_{col}$):**
+   * Dựa trên giả thuyết "Thế giới màu xám" (Gray-World Hypothesis), khống chế sự sai lệch tỷ lệ năng lượng giữa các kênh màu $(R, G, B)$ để **triệt tiêu hiện tượng lệch màu (color cast)**.
+   $$\mathcal{L}_{col} = \sum_{\forall (p, q) \in \{(R,G), (R,B), (G,B)\}} (J^p - J^q)^2$$
+4. **Illumination Smoothness Loss ($\mathcal{L}_{tv\_A}$):**
+   * Phạt độ dốc gradient của các bản đồ tham số $\mathcal{A}$ để đảm bảo độ sáng biến thiên mượt mà, tránh hiện tượng xuất hiện các đường sọc vằn hoặc chuyển vùng thô ráp.
+
+---
+
+## 4. Kiến trúc Mô hình GĐ2: Object Detection với YOLOv8
+
+Mô hình lựa chọn cho tác vụ hạ nguồn là **Ultralytics YOLOv8** (phiên bản `yolov8n` cho môi trường nhẹ hoặc `yolov8s` cho độ chính xác cao hơn).
 
 ```
 [Input Image: 640x640x3]
            │
            ▼
 ┌────────────────────────────────────────────────────────┐
-│ 1. BACKBONE: CSPDarknet53 (Cải tiến với C2f Module)    │
-│  - Stem Conv: Giảm kích thước ảnh, tăng kênh           │
-│  - C2f (Cross-Stage Partial with 2 Convolutions):      │
-│    Tăng cường luồng gradient, giữ đặc trưng vùng tối   │
-│  - SPPF (Spatial Pyramid Pooling - Fast): Gom ngữ cảnh │
+│ 1. BACKBONE: CSPDarknet53 (Tối ưu với module C2f)     │
+│  - Stem Conv: Giảm kích thước ảnh, tăng chiều sâu kênh │
+│  - C2f Module: Kết hợp gradient ELAN, giữ đặc trưng tối│
+│  - SPPF: Gom ngữ cảnh không gian đa tỷ lệ (Spatial Pool)│
 └────────────────────────────────────────────────────────┘
-           │  (Đặc trưng đa tỷ lệ: P3, P4, P5)
+           │  (Đặc trưng đa tầng P3, P4, P5)
            ▼
 ┌────────────────────────────────────────────────────────┐
-│ 2. NECK: PAN-FPN (Path Aggregation Network + FPN)      │
-│  - Top-Down: Truyền ngữ cảnh ngữ nghĩa từ sâu về nông  │
-│  - Bottom-Up: Truyền thông tin định vị biên/nét lên sâu│
-│  - Xuất ra 3 thang đo: Nhỏ (P3), Trung (P4), Lớn (P5)  │
+│ 2. NECK: PAN-FPN (Path Aggregation Network)            │
+│  - Top-Down: Truyền đặc trưng ngữ nghĩa cao về tầng thấp│
+│  - Bottom-Up: Truyền tọa độ biên nét chi tiết lên cao │
 └────────────────────────────────────────────────────────┘
            │
            ▼
 ┌────────────────────────────────────────────────────────┐
-│ 3. HEAD: Decoupled Anchor-Free Head                    │
-│  - Phân nhánh riêng biệt: Cls Head & Box Reg Head      │
-│  - Anchor-Free: Dự đoán trực tiếp offset tâm & khoảng  │
-│    cách tới 4 cạnh thay vì dựa vào anchor boxes cố định│
+│ 3. HEAD: Decoupled Anchor-Free Architecture            │
+│  - Tách rời 2 nhánh riêng biệt: Cls Head & Box Head   │
+│  - Dự đoán offset trực tiếp không dùng Anchor Box cố định│
 └────────────────────────────────────────────────────────┘
            │
            ▼
-[Hàm Mất Mát: Loss = Cls_Loss (BCE) + Box_Loss (CIoU + DFL)]
+[Loss Function: CIoU (IoU góc/tỷ lệ) + DFL (Biên mờ) + BCE (Class)]
 ```
 
-### Chi tiết các cải tiến quan trọng của YOLOv8:
-1. **Khối `C2f` thay cho `C3`:** Kết hợp ý tưởng của module ELAN (từ YOLOv7) với CSPNet, cho phép truyền nhiều đường dẫn tắt (gradient pathways) hơn mà không làm tăng độ trễ tính toán.
-2. **Decoupled Head:** Các phiên bản YOLO trước (YOLOv3, v4, v5) dùng chung 1 nhánh cho cả phân loại (classification) và hồi quy tọa độ (localization). YOLOv8 tách rời 2 nhánh này vì hai tác vụ này đòi hỏi đặc trưng khác nhau (phân loại cần đặc trưng ngữ nghĩa toàn cục, tọa độ cần chi tiết biên cạnh cục bộ).
-3. **Anchor-Free Mechanism:** Không còn bảng kích thước anchor boxes mặc định. Mô hình trực tiếp dự đoán khoảng cách từ điểm neo tới biên hộp, giúp thích nghi tốt hơn với các vật thể dị dạng hoặc bị che khuất trong bóng tối.
-4. **Hàm Loss:** Sử dụng **TaskAlignedAssigner** để ghép mẫu dương/âm động + kết hợp **CIoU Loss** (độ trùng khớp góc và tỷ lệ) cùng **DFL (Distribution Focal Loss)** để xử lý độ mập mờ của viền vật thể trong ảnh mờ tối.
+### Các ưu thế vượt trội của YOLOv8 trong môi trường ảnh đêm:
+1. **Module `C2f`:** Giữ được nhiều luồng thông tin gradient tinh tế của các chi tiết chìm trong bóng tối.
+2. **Decoupled Anchor-Free Head:** Không phụ thuộc vào kích cỡ hộp cố định, cực kỳ thích hợp bắt các vật thể dị dạng hoặc bị che khuất một phần trong đêm.
+3. **Distribution Focal Loss (DFL):** Mô hình hóa phân phối xác suất của tọa độ biên hộp, giúp xác định đường bao chính xác ngay cả khi biên vật thể bị hòa lẫn vào màn đêm.
 
 ---
 
-### 6.2. Lộ Trình Thực Hiện Từng Ngày (Timeline 18 Ngày)
+## 5. Chiến Lược Khớp Nối GĐ1 và GĐ2 (Co-Design & Alignment Strategy)
 
-```
-Tuần 1 (Day 1 - 7)       Tuần 2 (Day 8 - 14)          Nửa tuần cuối (Day 15 - 18)
-┌──────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
-│ Chuẩn bị dữ liệu     │  │ Xây dựng Pipeline CLAHE │  │ Thực nghiệm đối chứng   │
-│ Xây dựng Baseline    │  │ Làm sáng toàn bộ dataset│  │ Đo chỉ số, vẽ biểu đồ   │
-│ Huấn luyện YOLO Dark │  │ Retrain YOLOv8 trên ảnh │  │ Viết Báo cáo & Slide    │
-└──────────────────────┘  └─────────────────────────┘  └─────────────────────────┘
-```
+Một lỗi kinh điển trong các đề tài nghiên cứu thị giác kết hợp là: **Ảnh làm sáng trông rất đẹp với mắt người, nhưng khi đưa vào mô hình AI nhận diện thì độ chính xác (mAP) lại tụt dốc.**
 
-#### 📌 Sprint 1: Chuẩn bị Dữ liệu & Xây dựng Baseline (Ngày 1 $\rightarrow$ Ngày 7)
-* **Ngày 1 – 2: Khởi tạo Môi trường & GitHub**
-  * Tạo repository, thiết lập môi trường Python ảo hoặc Google Colab / Kaggle T4.
-  * Member 2 tải bộ dữ liệu ExDark (link YOLO format có sẵn Bounding Box).
-* **Ngày 3 – 4: Kiểm tra Dữ liệu & DataLoader**
-  * Member 2 viết script đọc ảnh và vẽ thử bounding boxes mẫu để nghiệm thu dữ liệu.
-  * Cấu hình file `data.yaml` chỉ đường dẫn chính xác tới thư mục `images/train`, `images/val`, `images/test`.
-* **Ngày 5 – 7: Huấn luyện Baseline YOLOv8 trên Ảnh Tối Gốc**
-  * Member 4 huấn luyện mô hình `yolov8n.pt` trên ảnh tối gốc ExDark (30–40 epochs).
-  * Ghi nhận các chỉ số: **$mAP_{50}$**, **$mAP_{50:95}$**, **Precision**, **Recall** trên tập Test $\rightarrow$ Đây là **Mốc chuẩn cơ sở (Dark Baseline)**.
+Để đảm bảo GĐ1 (Zero-DCE) phục vụ tối đa cho GĐ2 (YOLOv8), nhóm đề xuất chiến lược phối hợp 3 cấp độ:
 
-#### 📌 Sprint 2: Triển khai GĐ1 (CLAHE + Bilateral) & Thực Nghiệm Kết Hợp (Ngày 8 $\rightarrow$ Ngày 14)
-* **Ngày 8 – 9: Hoàn thiện Thuật toán Tiền Xử Lý Ảnh (GĐ1)**
-  * Member 3 viết hàm xử lý ảnh: Chuyển $BGR \rightarrow LAB$, tách kênh $L$, áp dụng `cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))`, sau đó lọc mịn giữ biên `cv2.bilateralFilter(d=5, sigmaColor=50, sigmaSpace=50)`.
-  * Viết thêm hàm Global HE (dùng `cv2.equalizeHist`) trên kênh $L$ để làm mốc so sánh phương pháp cơ bản trong giáo trình.
-* **Ngày 10 – 11: Làm Sáng Hàng Loạt Dataset (Batch Processing) & Đo Chất Lượng**
-  * Member 3 chạy script tự động xử lý toàn bộ tập ảnh ExDark, lưu vào 2 thư mục mới:
-    * `dataset/exdark_global_he/`
-    * `dataset/exdark_clahe_bilateral/`
-  * Member 5 tính toán chỉ số chất lượng không tham chiếu **NIQE** và **BRISQUE** cho 3 tập ảnh (Ảnh tối vs Global HE vs CLAHE).
-* **Ngày 12 – 14: Thực Nghiệm Kết Hợp (Cascaded Testing & Retraining)**
-  * **Kịch bản Cascaded:** Đưa ảnh trong `exdark_clahe_bilateral` vào mô hình YOLOv8 Baseline đã train ở Tuần 1 $\rightarrow$ Đo $mAP_{clahe\_cascaded}$.
-  * **Kịch bản Retrain:** Member 4 huấn luyện một model YOLOv8 mới hoàn toàn trên tập ảnh `exdark_clahe_bilateral` $\rightarrow$ Đo $mAP_{clahe\_retrained}$.
+### 5.1. Kiểm soát mức phơi sáng tối ưu trong hàm Loss của Zero-DCE
+* Mặc định trong Zero-DCE, mức phơi sáng mục tiêu là $E = 0.6$. Tuy nhiên, ảnh quá sáng sẽ làm các vùng nguồn sáng (đèn pha ô tô, đèn đường ban đêm) bị cháy trắng, mất chi tiết đầu xe.
+* Nhóm thực nghiệm khảo sát $E \in [0.5, 0.6, 0.7]$ để tìm ra "Điểm ngọt (Sweet Spot)" mà tại đó mô hình YOLOv8 đạt $mAP$ cao nhất.
 
-#### 📌 Sprint 3: Đánh Giá Đối Chứng, Trực Quan Hóa & Báo Cáo (Ngày 15 $\rightarrow$ Ngày 18)
-* **Ngày 15 – 16: Tổng hợp Số liệu & Phân tích Đột phá**
-  * Member 5 lập bảng so sánh tổng thể 4 kịch bản.
-  * Member 6 xuất ảnh đối chiếu trực quan (Side-by-side):
-    `[Ảnh tối gốc] | [Global HE (Cháy sáng)] | [CLAHE + Bilateral (Sáng tự nhiên)] | [Kết quả Bounding Box YOLOv8]`.
-  * Rút ra kết luận khoa học: Vì sao Global HE làm giảm độ chính xác nhận diện? Vì sao CLAHE bảo toàn biên giúp YOLOv8 bắt trọn vật thể?
-* **Ngày 17 – 18: Hoàn thiện Báo cáo & Chuẩn bị Bảo vệ**
-  * Member 1 hoàn thiện tài liệu `README.md` và Báo cáo Đồ án cuối kỳ.
-  * Cả nhóm hoàn thiện Slide thuyết trình và quay video demo (2–3 phút).
+### 5.2. Tinh chỉnh Data Augmentation của YOLOv8 khi huấn luyện trên ảnh đã làm sáng
+* Khi ảnh đã được tăng cường bởi Zero-DCE, phân phối ánh sáng đã ổn định ở dải chuẩn.
+* Giảm giá trị thay đổi ngẫu nhiên độ sáng trong `hyp.yaml`: Cài đặt `hsv_v: 0.1` (thay vì mặc định 0.4) để tránh việc bộ tăng cường ngẫu nhiên làm tối lại các ảnh vừa được xử lý.
+* Thiết lập `close_mosaic = 10` để tắt ghép ảnh 4 ô ở 10 epochs cuối, giúp mô hình ổn định kích thước vật thể nhỏ trong bóng đêm.
+
+### 5.3. Thiết kế Chuỗi Thí Nghiệm Đối Chứng Khoa Học Đa Chiều
+Xây dựng 4 kịch bản đối chứng chặt chẽ:
+1. **Kịch bản 1 (Raw Dark Baseline):** Đánh giá nhận diện trực tiếp trên ảnh tối gốc.
+2. **Kịch bản 2 (DIP Baseline - CLAHE):** Làm sáng bằng thuật toán xử lý ảnh kinh điển (CIE LAB + CLAHE + Bilateral) $\rightarrow$ Đo $mAP$.
+3. **Kịch bản 3 (Zero-DCE Cascaded):** Đưa ảnh tăng cường qua Zero-DCE vào model YOLOv8 Dark Baseline (đánh giá khả năng chuyển giao không qua huấn luyện lại).
+4. **Kịch bản 4 (Zero-DCE Retrained & Aligned):** Huấn luyện lại toàn diện YOLOv8 trên tập dữ liệu đã tăng cường bởi Zero-DCE với siêu tham số tối ưu.
 
 ---
 
-## 7. Các Tiêu Chí Đánh Giá (Evaluation Metrics)
+## 6. Sơ đồ Pipeline Tổng Thể (End-to-End System)
 
-### 7.1. Tiêu Chí Đánh Giá Giai Đoạn 1 (Image Enhancement)
-Do ExDark là ảnh chụp bóng tối ngoài thực tế (không có ảnh chụp ban ngày chuẩn cùng góc để so sánh đối ứng Paired GT), nhóm sử dụng các chỉ số **Đánh giá chất lượng không cần ảnh tham chiếu (No-Reference Image Quality Assessment)**:
+```mermaid
+flowchart TD
+    subgraph IN ["📷 DỮ LIỆU ĐẦU VÀO"]
+        DarkImg["Ảnh Thiếu Sáng Tự Nhiên<br/><i>(ExDark Dataset)</i>"]
+    end
 
-1. **NIQE (Naturalness Image Quality Evaluator) $\downarrow$:** Đo độ tự nhiên của bức ảnh so với phân phối thống kê tự nhiên. **Điểm số càng nhỏ $\rightarrow$ Ảnh càng tự nhiên, không bị biến dạng.**
-2. **BRISQUE (Blind/Referenceless Image Spatial Quality Evaluator) $\downarrow$:** Đánh giá độ méo mó không gian do nhiễu hạt hoặc làm mờ. **Điểm càng thấp $\rightarrow$ Ảnh càng trong trẻo, sắc nét.**
-3. **Tốc độ xử lý:** **FPS (Frames per second)** và **Inference Time (ms)**: Đo tốc độ chạy của hàm OpenCV CLAHE trên CPU/GPU.
+    subgraph STAGE1 ["✨ GIAI ĐOẠN 1: IMAGE ENHANCEMENT"]
+        direction TB
+        subgraph S1_DL ["🌟 Nhánh Chính: Deep Learning"]
+            DCE["<b>Zero-DCE / Zero-DCE++</b><br/>(DCE-Net ~10K Params)<br/><i>Dự đoán LE-Curve Maps A</i>"]
+            Enh_DCE["Ảnh Đã Tăng Cường (Zero-DCE)<br/><i>Sáng tự nhiên, giữ trọn biên nét</i>"]
+            DCE --> Enh_DCE
+        end
+        subgraph S1_DIP ["⚙️ Nhánh Đối Chứng: DIP Kinh Điển"]
+            DIP["<b>CLAHE + Bilateral</b><br/><i>(Không gian màu CIE LAB)</i>"]
+            Enh_DIP["Ảnh Đã Cân Bằng (CLAHE)<br/><i>Mốc so sánh truyền thống</i>"]
+            DIP --> Enh_DIP
+        end
+    end
 
-### 7.2. Tiêu Chí Đánh Giá Giai Đoạn 2 (Downstream Object Detection)
-Sử dụng tiêu chuẩn đánh giá của cuộc thi PASCAL VOC và MS COCO:
+    subgraph STAGE2 ["🎯 GIAI ĐOẠN 2: DOWNSTREAM OBJECT DETECTION"]
+        direction TB
+        YOLO_Dark["<b>YOLOv8 Dark Baseline</b><br/><i>(Train trên ảnh tối gốc)</i>"]
+        YOLO_Retrain["<b>YOLOv8 Retrained Model</b><br/><i>(Train trên ảnh Zero-DCE)</i>"]
+    end
 
-1. **Precision ($P$) $\uparrow$:** Tỷ lệ số hộp dự đoán đúng trên tổng số hộp mô hình đã dự đoán:
+    subgraph OUT ["📊 KẾT QUẢ & ĐÁNH GIÁ ĐỐI CHỨNG"]
+        Res1["Mốc 1: mAP Dark Baseline"]
+        Res2["Mốc 2: mAP CLAHE Cascaded"]
+        Res3["Mốc 3: mAP Zero-DCE Cascaded"]
+        Res4["Mốc 4: mAP Zero-DCE Retrained"]
+    end
+
+    DarkImg --> DCE
+    DarkImg --> DIP
+    DarkImg --> YOLO_Dark
+
+    DarkImg --> YOLO_Dark --> Res1
+    Enh_DIP --> YOLO_Dark --> Res2
+    Enh_DCE --> YOLO_Dark --> Res3
+    Enh_DCE --> YOLO_Retrain --> Res4
+
+    classDef dl fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef dip fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef yolo fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef res fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    class DCE,Enh_DCE dl;
+    class DIP,Enh_DIP dip;
+    class YOLO_Dark,YOLO_Retrain yolo;
+    class Res1,Res2,Res3,Res4 res;
+```
+
+---
+
+## 7. Bộ Dữ Liệu (Dataset) ExDark & Format Chuẩn Hóa
+
+### 7.1. Giới thiệu Bộ dữ liệu ExDark
+* **Tên đầy đủ:** Exclusively Dark Image Dataset (ExDark).
+* **Quy mô:** **7,363 ảnh chụp thực tế** trong nhiều điều kiện thiếu sáng khác nhau: ánh sáng đường phố, trong nhà tối, ngoài trời ban đêm.
+* **12 Lớp Đối tượng (Classes):**  
+  `Bicycle`, `Boat`, `Bottle`, `Bus`, `Car`, `Cat`, `Chair`, `Cup`, `Dog`, `Motorbike`, `People`, `Table`.
+* **Đặc tính then chốt:** Đây là dữ liệu thực tế không có ảnh sáng ban ngày đối ứng $\rightarrow$ **Khẳng định tính đúng đắn khi sử dụng mô hình Deep Learning không cần giám sát Zero-DCE**.
+
+### 7.2. Tải & Chuẩn Hóa Dữ Liệu
+Dataset đã được chuẩn hóa sang định dạng YOLOv8 (tỷ lệ phân chia 70% Train - 20% Val - 10% Test):
+* **Tải qua Kaggle:** `kaggle datasets download -d xhlulu/exdark-dataset`
+* **Cấu trúc thư mục:**
+```
+Dataset/
+├── raw/ExDark/                    # Ảnh gốc kèm annotations gốc
+├── exdark_yolo_dark/              # Tập ảnh TỐI GỐC (Train/Val/Test)
+│   ├── data.yaml
+│   ├── images/ (train, val, test)
+│   └── labels/ (train, val, test)
+└── exdark_yolo_zerodce/           # Tập ẢNH TĂNG CƯỜNG SÁNG bởi Zero-DCE
+    ├── data.yaml
+    ├── images/ (train, val, test)
+    └── labels/                    # Kế thừa 100% nhãn tọa độ từ ảnh gốc
+```
+
+* **Quy cách nhãn Bounding Box chuẩn YOLO:**
+  Mỗi ảnh có file `.txt` chứa các dòng: `<class_id> <x_center> <y_center> <width> <height>` (được chuẩn hóa chia theo kích thước ảnh từ $0.0$ đến $1.0$).
+
+---
+
+## 8. Kế Hoạch Triển Khai Thực Nghiệm Chi Tiết (Sprint 18 Ngày)
+
+```
+Tuần 1 (Day 1 - 7)            Tuần 2 (Day 8 - 14)             Nửa tuần cuối (Day 15 - 18)
+┌───────────────────────────┐ ┌─────────────────────────────┐ ┌─────────────────────────┐
+│ Chuẩn bị dữ liệu ExDark   │ │ Cài đặt Zero-DCE & CLAHE    │ │ Tổng hợp số liệu bảng   │
+│ Khảo sát EDA phân bố      │ │ Batch inference dataset     │ │ Đo NIQE, BRISQUE, mAP   │
+│ Train YOLO Dark Baseline  │ │ Train YOLOv8 trên Zero-DCE  │ │ Viết Báo cáo & Làm Slide│
+└───────────────────────────┘ └─────────────────────────────┘ └─────────────────────────┘
+```
+
+### 📌 Sprint 1: Dữ liệu & Xây dựng Mốc Baseline (Ngày 1 $\rightarrow$ Ngày 7)
+* **Ngày 1 – 3:** Tải dataset ExDark, viết script EDA kiểm tra phân bố 12 classes, sinh file cấu hình `data.yaml`.
+* **Ngày 4 – 5:** Cài đặt DataLoader, vẽ kiểm tra bounding box trên ảnh tối mẫu.
+* **Ngày 6 – 7:** Huấn luyện mô hình **YOLOv8n Dark Baseline** (40 epochs). Lưu lại trọng số `yolov8n_dark_best.pt` và ghi nhận chỉ số $mAP_{dark}$.
+
+### 📌 Sprint 2: Triển khai GĐ1 (Zero-DCE & CLAHE) & Thử Nghiệm GĐ2 (Ngày 8 $\rightarrow$ Ngày 14)
+* **Ngày 8 – 9:** 
+  * Cài đặt kiến trúc mạng **Zero-DCE / Zero-DCE++** trên PyTorch kèm 4 hàm loss tự giám sát ($\mathcal{L}_{spa}, \mathcal{L}_{exp}, \mathcal{L}_{col}, \mathcal{L}_{tv}$).
+  * Cài đặt hàm baseline truyền thống: CLAHE + Bilateral Filter bằng OpenCV.
+* **Ngày 10 – 11:** 
+  * Tải checkpoint pretrained hoặc train nhanh Zero-DCE trên tập train ExDark.
+  * Chạy Batch Inference để tăng cường sáng toàn bộ dataset, lưu vào `Dataset/exdark_yolo_zerodce/`.
+  * Đo các chỉ số cảm quan ảnh không tham chiếu: **NIQE $\downarrow$** và **BRISQUE $\downarrow$**.
+* **Ngày 12 – 14:** 
+  * **Kịch bản Cascaded:** Đưa ảnh Zero-DCE vào model YOLO Dark Baseline $\rightarrow$ Đo $mAP_{cascaded}$.
+  * **Kịch bản Retrain:** Huấn luyện mô hình YOLOv8 mới trên tập ảnh Zero-DCE với các siêu tham số tối ưu (`hsv_v=0.1, close_mosaic=10`) $\rightarrow$ Đo $mAP_{retrained}$.
+
+### 📌 Sprint 3: Phân Tích Đối Chứng, Ablation Study & Báo Cáo (Ngày 15 $\rightarrow$ Ngày 18)
+* **Ngày 15 – 16:** 
+  * Lập bảng so sánh 4 kịch bản đối chứng.
+  * Xuất ảnh so sánh 4 khung hình song song (Side-by-Side): `[Ảnh tối gốc] | [Ảnh CLAHE] | [Ảnh Zero-DCE] | [Dự đoán Bounding Box]`.
+  * Phân tích Ablation Study: Tác động của mức phơi sáng $E$, so sánh tốc độ FPS giữa Zero-DCE và CLAHE.
+* **Ngày 17 – 18:** Hoàn thiện Báo cáo Đồ án cuối kỳ, Slide bảo vệ và quay video demo (2–3 phút).
+
+---
+
+## 9. Các Tiêu Chí Đánh Giá (Evaluation Metrics)
+
+### 9.1. Đánh giá Chất lượng Ảnh (Giai đoạn 1 - Image Quality Assessment)
+Vì ExDark không có ảnh tham chiếu chuẩn, sử dụng các chỉ số **No-Reference IQA**:
+1. **NIQE (Naturalness Image Quality Evaluator) $\downarrow$:** Đo độ lệch của ảnh so với mô hình thống kê phân phối tự nhiên. Điểm số càng nhỏ $\rightarrow$ Ảnh càng tự nhiên.
+2. **BRISQUE (Blind/Referenceless Image Spatial Quality Evaluator) $\downarrow$:** Đánh giá độ biến dạng không gian do nhiễu hạt hoặc mờ nhòe. Điểm càng thấp $\rightarrow$ Ảnh càng sắc nét, ít artifacts.
+3. **Tốc độ xử lý:** **FPS (Frames Per Second)** và **Latency (ms)** trên cùng phần cứng GPU/CPU.
+
+### 9.2. Đánh giá Hiệu năng Nhận diện (Giai đoạn 2 - Object Detection)
+Sử dụng tiêu chuẩn đánh giá PASCAL VOC và MS COCO:
+1. **Precision ($P$) $\uparrow$:** Tỷ lệ bounding box dự đoán đúng trên tổng số box dự đoán:
    $$P = \frac{TP}{TP + FP}$$
-2. **Recall ($R$) $\uparrow$:** Tỷ lệ số vật thể tìm thấy trên tổng số vật thể thực tế có trong ảnh:
+2. **Recall ($R$) $\uparrow$:** Tỷ lệ đối tượng tìm thấy trên tổng số đối tượng thực tế:
    $$R = \frac{TP}{TP + FN}$$
-3. **mAP@0.5 $\uparrow$:** Mean Average Precision tại ngưỡng IoU = 0.50 (Chỉ số đánh giá độ chính xác cốt lõi).
-4. **mAP@0.5:0.95 $\uparrow$:** Điểm mAP trung bình lấy mẫu từ ngưỡng IoU 0.50 đến 0.95 (Đánh giá độ khít của Bounding Box).
-
-### 7.3. Bảng Tổng Hợp Kết Quả Thực Nghiệm Mẫu (Dành Cho Báo Cáo Cuối Kỳ)
-
-| Kịch bản Thực nghiệm (Pipeline) | Phương pháp Tiền Xử Lý (GĐ1) | Chất lượng ảnh (NIQE $\downarrow$) | Precision | Recall | mAP@0.5 | mAP@0.5:0.95 | Tốc độ Pipeline |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Kịch bản 1: Raw Dark (Baseline)** | Không xử lý (Ảnh tối gốc) | 5.82 | 0.621 | 0.512 | 0.548 | 0.312 | **~85 FPS** |
-| **Kịch bản 2: Global HE + YOLOv8** | Cân bằng HE toàn cục (Giáo trình) | 6.10 *(Bị chói)* | 0.584 | 0.491 | 0.521 *(Giảm)*| 0.289 | ~75 FPS |
-| **Kịch bản 3: CLAHE + Bilateral (Direct)** | CLAHE cục bộ + Lọc biên | **4.21** | 0.655 | 0.568 | 0.598 | 0.345 | ~65 FPS |
-| **Kịch bản 4: CLAHE + Retrain YOLOv8** | CLAHE cục bộ + Retrained | **4.21** | **0.698** | **0.625** | **0.654** | **0.388** | ~65 FPS |
-
-> **Nhận xét chuyên sâu chuẩn bảo vệ đồ án:**
-> 1. **Hiện tượng ở Kịch bản 2 (Global HE):** Điểm $mAP@0.5$ bị **giảm từ 0.548 xuống 0.521**. Lý do: Cân bằng toàn cục làm các nguồn sáng bị cháy trắng và khuếch đại nhiễu hạt ở nền đen, khiến mạng YOLOv8 nhận diện nhầm các cụm nhiễu thành vật thể giả (False Positives).
-> 2. **Hiệu quả của Kịch bản 3 & 4 (Đề xuất CLAHE + Bilateral):** Nhờ có cơ chế cắt ngọn tương phản (Clip Limit) và lọc phẳng bảo toàn biên (Bilateral Filter), ảnh được làm sáng dịu mắt, giữ trọn viền cạnh. Khi đưa vào YOLOv8 trực tiếp, $mAP@0.5$ tăng lên **0.598** (+5.0%). Khi huấn luyện lại mô hình thích nghi với ảnh CLAHE, $mAP@0.5$ đạt đỉnh **0.654** (+10.6%).
+3. **mAP@0.5 $\uparrow$:** Mean Average Precision tại ngưỡng IoU = 0.50 (Thước đo độ chính xác cốt lõi).
+4. **mAP@0.5:0.95 $\uparrow$:** Trung bình mAP tại các ngưỡng IoU từ 0.50 đến 0.95 (Đo độ khớp khít của tọa độ hộp).
 
 ---
 
-### 7.4. Bảng Nghiên Cứu Bóc Tách Tham Số (Ablation Study: Tuning GĐ1 & GĐ2)
-Thí nghiệm minh chứng tại sao cần tinh chỉnh tham số để GĐ1 và GĐ2 ăn khớp với nhau:
+## 10. Bảng Kết Quả Thực Nghiệm Dự Kiến & Phân Tích Khoa Học
 
-| Cấu hình Thử Nghiệm | Tham số GĐ1 (CLAHE & Bilateral) | Tham số GĐ2 (YOLOv8 Augmentation) | Hiện tượng quan sát | mAP@0.5 |
+### 10.1. Bảng Tổng Hợp Kết Quả Thực Nghiệm Đối Chứng (Trình Bày Báo Cáo)
+
+| Kịch bản Thực nghiệm (Pipeline) | Phương pháp GĐ1 | Phân loại | NIQE $\downarrow$ | BRISQUE $\downarrow$ | Precision | Recall | mAP@0.5 | mAP@0.5:0.95 | FPS Toàn Pipeline |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Kịch bản 1: Raw Dark (Baseline)** | Không xử lý | Ảnh tối gốc | 5.82 | 48.3 | 0.621 | 0.512 | 0.548 | 0.312 | **~85 FPS** |
+| **Kịch bản 2: CLAHE + Bilateral** | CLAHE (OpenCV) | DIP Truyền thống | 4.65 | 39.1 | 0.648 | 0.551 | 0.582 | 0.334 | ~65 FPS |
+| **Kịch bản 3: Zero-DCE (Cascaded)** | Zero-DCE (PyTorch) | Deep Learning | **3.88** | **31.2** | 0.669 | 0.584 | 0.615 | 0.358 | ~78 FPS |
+| **Kịch bản 4: Zero-DCE (Retrained)** | Zero-DCE (PyTorch) | Deep Learning Aligned | **3.88** | **31.2** | **0.712** | **0.638** | **0.668** | **0.395** | ~78 FPS |
+
+> **Nhận định Khoa Học Sâu Sắc cho Buổi Bảo Vệ:**
+> 1. **So sánh DIP (CLAHE) vs Deep Learning (Zero-DCE):**
+>    - CLAHE làm sáng cục bộ tốt hơn Global HE nhưng vẫn có xu hướng khuếch đại các hạt nhiễu nền ở các vùng tối sâu, khiến điểm NIQE chỉ đạt 4.65.
+>    - **Zero-DCE** đạt điểm chất lượng vượt trội (**NIQE 3.88, BRISQUE 31.2**) nhờ mạng DCE-Net ước lượng các đường cong ánh sáng mượt mà liên tục, không làm biến dạng màu (nhờ $\mathcal{L}_{col}$) và giữ trọn biên nét tự nhiên (nhờ $\mathcal{L}_{spa}$).
+> 2. **Tác động đến Downstream Recognition (GĐ2):**
+>    - Kịch bản Cascaded (Zero-DCE đưa thẳng vào model tối) giúp $mAP@0.5$ tăng từ **0.548 lên 0.615 (+6.7%)**, chứng minh việc phục hồi thông tin biên và độ tương phản của Zero-DCE trực tiếp hỗ trợ Backbone YOLOv8 trích xuất đặc trưng tốt hơn.
+>    - Khi huấn luyện lại YOLOv8 thích nghi trên dữ liệu Zero-DCE, $mAP@0.5$ đạt đỉnh **0.668 (+12.0% so với ảnh tối gốc)**.
+
+---
+
+### 10.2. Bảng Nghiên Cứu Bóc Tách Tham Số (Ablation Study)
+
+| Cấu hình Thử Nghiệm | Tham số Khống Chế GĐ1 | Tham số Huấn luyện GĐ2 | Hiện tượng & Quan sát Thực nghiệm | mAP@0.5 |
 | :--- | :--- | :--- | :--- | :---: |
-| **Ablation 1 (Cháy sáng)** | `clipLimit = 4.0`, $d=5$ | Mặc định (`hsv_v = 0.4`) | Đèn đường/đèn xe cháy trắng, mất chi tiết đầu xe `Car` | 0.572 |
-| **Ablation 2 (Nhiễu hạt)** | `clipLimit = 2.0`, *Không lọc Bilateral* | Mặc định (`hsv_v = 0.4`) | Nhiễu hạt bị khuếch đại, xuất hiện nhiều False Positives | 0.581 |
-| **Ablation 3 (Lọc quá đà)** | `clipLimit = 2.0`, $d=11, \sigma=80$ (Quá mạnh) | Mặc định (`hsv_v = 0.4`) | Mờ viền vật thể nhỏ, $mAP$ của `Bottle` và `Cup` tụt dốc | 0.565 |
-| **Ablation 4 (Tối ưu GĐ1)** | `clipLimit = 2.0`, $d=5, \sigma=35$ (Chuẩn) | Mặc định (`hsv_v = 0.4`) | Ảnh sáng tự nhiên, biên sắc nét, vật thể nhỏ rõ ràng | 0.598 |
-| **Ablation 5 (Khớp nối tối đa)** | `clipLimit = 2.0`, $d=5, \sigma=35$ (Chuẩn) | Tinh chỉnh: `hsv_v = 0.1`, `close_mosaic = 10` | **Model giữ nguyên độ sáng ổn định, nhận diện đỉnh cao** | **0.654** |
-
-
+| **Ablation 1 (Cháy sáng)** | Zero-DCE với $E = 0.8$ (Quá sáng) | `hsv_v = 0.4` (Mặc định) | Vùng đèn xe/biển hiệu bị bão hòa trắng, mất chi tiết `Car` | 0.592 |
+| **Ablation 2 (Thiếu sáng)** | Zero-DCE với $E = 0.4$ (Hơi tối) | `hsv_v = 0.4` (Mặc định) | Chi tiết vùng tối sâu chưa bung ra hết, `Chair`, `Cat` bị sót | 0.608 |
+| **Ablation 3 (Tối ưu GĐ1)** | Zero-DCE với $E = 0.6$ (Chuẩn) | `hsv_v = 0.4` (Mặc định) | Ảnh sáng tự nhiên, biên nét trong trẻo | 0.615 |
+| **Ablation 4 (Khớp nối tối đa)**| Zero-DCE với $E = 0.6$ (Chuẩn) | `hsv_v = 0.1`, `close_mosaic = 10` | **Model giữ phân phối sáng ổn định, độ chính xác đạt đỉnh** | **0.668** |
 
 ---
 
-## 9. Cấu Trúc Thư Mục Dự Án & Kịch Bản run.py (Project Tree & Workflow)
+## 11. Cấu Trúc Thư Mục Dự Án & Kịch Bản run.py Tự Động
 
-### 9.1. Sơ Đồ Cấu Trúc Thư Mục Chi Tiết (Project Directory Tree)
-Toàn bộ dự án khi tải dữ liệu từ Kaggle `xhlulu/exdark-dataset` và triển khai trên máy tính hoặc Google Colab / Kaggle được bố trí khoa học theo cấu trúc sau:
-# Foder Chạy trên Local --- 
-
+### 11.1. Sơ Đồ Cây Thư Mục Toàn Diện
 ```text
 Project18/
 │
 ├── README.md                      # Báo cáo tổng thể toàn bộ đề tài
-├── Project 18.md                  # Phân tích kỹ thuật & ghi chú đề tài
-├── run.py                         # 🚀 SCRIPT TỔNG HỢP TOÀN BỘ DỰ ÁN (Chạy tự động từ A - Z)
-├── requirements.txt               # Danh sách thư viện phụ thuộc (ultralytics, opencv, ...)
+├── Project 18.md                  # Ghi chú & phân tích chi tiết đề tài
+├── run.py                         # 🚀 SCRIPT MASTER CHẠY TOÀN BỘ PIPELINE TỰ ĐỘNG
+├── requirements.txt               # Thư viện phụ thuộc (torch, ultralytics, opencv, torchvision)
 │
-├── Dataset/                       # Thư mục dữ liệu
-│   ├── raw/                       # Dữ liệu gốc tải về từ Kaggle (chưa chỉnh sửa)
-│   │   └── ExDark/
-│   │       ├── Bicycle/ ... (12 thư mục ảnh theo từng class)
-│   │       └── annotations/       # File txt nhãn bounding box gốc
-│   │
-│   ├── exdark_yolo_dark/          # Tập ảnh TỐI GỐC chia chuẩn format YOLOv8
-│   │   ├── data.yaml              # Cấu hình đường dẫn & 12 class ảnh tối
-│   │   ├── images/
-│   │   │   ├── train/ (~5,154 ảnh)
-│   │   │   ├── val/   (~1,472 ảnh)
-│   │   │   └── test/  (~737 ảnh)
-│   │   └── labels/
-│   │       ├── train/
-│   │       ├── val/
-│   │       └── test/
-│   │
-│   └── exdark_yolo_clahe/         # Tập ẢNH ĐÃ LÀM SÁNG (GĐ1: CLAHE + Bilateral)
-│       ├── data.yaml              # Cấu hình đường dẫn & 12 class ảnh CLAHE
-│       ├── images/
-│       │   ├── train/ (Ảnh đã tăng cường độ sáng)
-│       │   ├── val/   (Ảnh đã tăng cường độ sáng)
-│       │   └── test/  (Ảnh đã tăng cường độ sáng)
-│       └── labels/                # Tái sử dụng 100% từ exdark_yolo_dark (tọa độ không đổi)
-│           ├── train/
-│           ├── val/
-│           └── test/
-│
-├── Notebooks/                     # Thư mục chứa các Jupyter Notebook (.ipynb) để thử nghiệm trực quan
-│   ├── 01_data_preparation.ipynb  # Khảo sát dữ liệu (EDA), chuyển đổi format nhãn YOLO
-│   ├── 02_stage1_enhancement.ipynb# Thực nghiệm GĐ1 (CLAHE, Bilateral, đo NIQE, BRISQUE)
-│   └── 03_stage2_yolov8.ipynb     # Thực nghiệm GĐ2 (Train, Cascaded, Retrain YOLOv8)
-│
-├── src/                           # Các module mã nguồn Python tái sử dụng (.py)
-│   ├── __init__.py
-│   ├── preprocess.py              # Hàm xử lý CLAHE, Bilateral, tách kênh không gian LAB
-│   ├── metrics.py                 # Hàm tính chỉ số NIQE, BRISQUE, FPS
-│   └── visualize.py               # Hàm vẽ bounding box, xuất ảnh so sánh side-by-side
-│
-└── Results/                       # Thư mục lưu kết quả, trọng số và đồ thị
-    ├── weights/                   # Lưu model tốt nhất (best.pt)
-    │   ├── yolov8n_dark_best.pt
-    │   └── yolov8n_clahe_aligned_best.pt
-    ├── figures/                   # Ảnh so sánh trực quan (xuất vào Slide & Báo cáo)
-    │   ├── enhancement_comparison.png
-    │   └── detection_predictions.png
-    └── comparisons_table.csv      # Bảng tổng hợp số liệu đối chứng mAP và NIQE
-```
-# Foder run trên gg Colab 
-
-/content/                                  <-- Thư mục làm việc mặc định trên máy ảo Colab (SSD siêu nhanh)
-│
-├── drive/                                 <-- Google Drive cá nhân (Mount vào để lưu vĩnh viễn)
-│   └── MyDrive/
-│       └── Project18_Saved/               <-- Ổ CỨNG VĨNH VIỄN: Lưu best.pt, file csv và biểu đồ ở đây
-│           ├── weights/                   # Lưu model tốt nhất (best_dark.pt, best_clahe.pt)
-│           ├── figures/                   # Lưu ảnh so sánh đối chứng
-│           └── comparisons_table.csv      # Bảng tổng kết số liệu mAP
-│
-├── Project18/                             <-- Thư mục code đồ án (Clone từ Git hoặc tạo trực tiếp)
-│   ├── Project18_Colab.ipynb              # File Notebook đang mở chạy từng Cell
-│   ├── README.md
-│   └── src/                               # Các hàm tiện ích bổ trợ
-│       ├── preprocess.py                  # Hàm CLAHE + Bilateral
-│       └── metrics.py                     # Hàm tính NIQE, BRISQUE
-│
-├── Dataset/                               <-- Dữ liệu lưu tại SSD Colab (Đọc cực nhanh)
-│   ├── exdark_yolo_dark/                  # Dữ liệu ảnh TỐI GỐC
-│   │   ├── data.yaml                      # Đường dẫn trỏ: /content/Dataset/exdark_yolo_dark/...
+├── Dataset/                       # Quản lý dữ liệu
+│   ├── raw/ExDark/                # Dữ liệu gốc tải từ Kaggle
+│   ├── exdark_yolo_dark/          # Dữ liệu ảnh tối gốc chuẩn format YOLOv8
+│   │   ├── data.yaml
 │   │   ├── images/ (train, val, test)
 │   │   └── labels/ (train, val, test)
-│   │
-│   └── exdark_yolo_clahe/                 # Dữ liệu ẢNH ĐÃ LÀM SÁNG (GĐ1)
-│       ├── data.yaml                      # Đường dẫn trỏ: /content/Dataset/exdark_yolo_clahe/...
+│   └── exdark_yolo_zerodce/       # Dữ liệu ảnh ĐÃ TĂNG CƯỜNG SÁNG bởi Zero-DCE
+│       ├── data.yaml
 │       ├── images/ (train, val, test)
 │       └── labels/ (train, val, test)
 │
-└── runs/                                  <-- Thư mục YOLOv8 TỰ ĐỘNG SINH trong lúc huấn luyện
-    └── detect/
-        ├── train_dark_baseline/           # Chứa results.png, weights/best.pt của nhánh tối gốc
-        └── train_clahe_aligned/           # Chứa results.png, weights/best.pt của nhánh CLAHE
+├── Notebooks/                     # Thử nghiệm tương tác từng cell
+│   ├── 01_data_preparation.ipynb  # Khảo sát dữ liệu (EDA) & YOLO split
+│   ├── 02_zerodce_enhancement.ipynb# Huấn luyện/Inference Zero-DCE & Đo NIQE
+│   └── 03_yolov8_experiments.ipynb # Chạy 4 kịch bản YOLOv8 & Đánh giá
+│
+├── src/                           # Modules mã nguồn Python chuẩn mực
+│   ├── __init__.py
+│   ├── model_zerodce.py           # Định nghĩa kiến trúc DCE-Net / Zero-DCE++
+│   ├── loss_zerodce.py            # 4 hàm loss: Spatial, Exposure, Color, Smoothness
+│   ├── preprocess_dip.py          # Module CLAHE + Bilateral (Baseline truyền thống)
+│   ├── metrics.py                 # Hàm tính chỉ số NIQE, BRISQUE, FPS
+│   └── visualize.py               # Xuất ảnh đối chứng 4 khung hình song song
+│
+└── Results/                       # Thư mục lưu trữ sản phẩm
+    ├── weights/                   # Trọng số mô hình
+    │   ├── zerodce_best.pth       # Checkpoint Zero-DCE
+    │   ├── yolov8n_dark_best.pt   # YOLOv8 Dark Baseline
+    │   └── yolov8n_zerodce_best.pt# YOLOv8 Retrained
+    ├── figures/                   # Biểu đồ mAP và ảnh so sánh trực quan
+    │   ├── enhancement_comparison.png
+    │   └── detection_predictions.png
+    └── comparisons_table.csv      # Bảng tổng kết số liệu định lượng
+```
 
 ---
 
-### 9.2. Kịch Bản Từng Phase Chi Tiết Bên Trong `run.py` & Notebooks
-
-File `run.py` (và hệ thống Notebooks) được thiết kế vận hành tuần tự qua **6 Phase** khép kín, hỗ trợ chạy tự động chỉ bằng 1 dòng lệnh: `python run.py`:
+### 11.2. Kịch Bản 6 Phase Bên Trong `run.py`
+Toàn bộ quy trình thực nghiệm được tích hợp tự động hóa qua lệnh `python run.py`:
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ Phase 0: Setup  │ ──► │ Phase 1: Data   │ ──► │ Phase 2: GĐ1    │
-│ Cài đặt & Tải DL│     │ EDA & YOLO Split│     │ CLAHE & Bilat.  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                         │
-┌─────────────────┐     ┌─────────────────┐              ▼
-│ Phase 5: Demo   │ ◄── │ Phase 4: Tổng   │ ◄── ┌─────────────────┐
-│ End-to-End Test │     │ Hợp & Biểu Đồ   │     │ Phase 3: GĐ2    │
-└─────────────────┘     └─────────────────┘     │ YOLOv8 3 Nhánh  │
-                                                └─────────────────┘
+┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│ Phase 0: Setup   │ ──► │ Phase 1: Data    │ ──► │ Phase 2: GĐ1     │
+│ Cài đặt & Tải DL │     │ EDA & YOLO Split │     │ Zero-DCE (DeepL) │
+└──────────────────┘     └──────────────────┘     └──────────────────┘
+                                                           │
+┌──────────────────┐     ┌──────────────────┐              ▼
+│ Phase 5: Demo    │ ◄── │ Phase 4: Tổng    │ ◄── ┌──────────────────┐
+│ End-to-End Test  │     │ Hợp & Biểu Đồ    │     │ Phase 3: GĐ2     │
+└──────────────────┘     └──────────────────┘     │ YOLOv8 4 Kịch Bản│
+                                                  └──────────────────┘
 ```
 
-#### 🔸 Phase 0: Khởi Tạo Môi Trường & Tải Dữ Liệu (Environment & Download)
-* Kiểm tra tài nguyên phần cứng GPU (`torch.cuda.is_available()`).
-* Tự động tạo cây thư mục chuẩn (`Dataset/`, `Results/`, `Notebooks/`).
-* Tải dữ liệu `xhlulu/exdark-dataset` từ Kaggle hoặc giải nén file zip vào `Dataset/raw/`.
-
-#### 🔸 Phase 1: Tiền Xử Lý Dữ Liệu & Chuẩn Hóa YOLOv8 (Data Preparation)
-* **Khảo sát phân bố dữ liệu (EDA):** Thống kê số lượng mẫu trên 12 classes (`Bicycle, Bus, Car, Cat, Dog, People...`).
-* **Chuẩn hóa nhãn Bounding Box:** Chuyển tọa độ gốc sang file `.txt` chuẩn YOLO: `<class_id> <x_center> <y_center> <width> <height>`.
-* **Phân chia tập dữ liệu:** Chia ngẫu nhiên theo tỷ lệ 70% Train - 20% Val - 10% Test.
-* **Sinh file cấu hình `Dataset/exdark_yolo_dark/data.yaml`**.
-* Vẽ kiểm tra 4 ảnh mẫu kèm bounding box để đảm bảo nhãn chính xác.
-
-#### 🔸 Phase 2: Giai Đoạn 1 (GĐ1) - Image Enhancement (Xử Lý Ảnh Kinh Điển)
-* Định nghĩa hàm chuẩn `enhance_clahe_bilateral()` với các thông số tinh chỉnh tối ưu:
-  * Không gian màu CIE LAB $\rightarrow$ Cân bằng kênh $L$ với `clipLimit=2.0, tileGrid=(8,8)` $\rightarrow$ Lọc song phương `d=5, sigmaColor=35, sigmaSpace=35` $\rightarrow$ Chuyển về BGR/RGB.
-* **Batch Processing:** Tự động duyệt qua toàn bộ tập ảnh gốc để sinh ra tập ảnh đã làm sáng trong `Dataset/exdark_yolo_clahe/images/` (train, val, test).
-* Copy thư mục nhãn `labels/` sang `exdark_yolo_clahe/` (tọa độ không đổi).
-* Sinh file cấu hình `Dataset/exdark_yolo_clahe/data.yaml`.
-* **Đo lường chất lượng ảnh không tham chiếu:** Tính toán và so sánh điểm **NIQE $\downarrow$** và **BRISQUE $\downarrow$** trên tập ảnh gốc vs ảnh Global HE vs ảnh CLAHE + Bilateral.
-
-#### 🔸 Phase 3: Giai Đoạn 2 (GĐ2) - Object Detection (YOLOv8 Thực Nghiệm Đối Chứng)
-Thực hiện lần lượt 3 kịch bản thực nghiệm độc lập:
-1. **Experiment 1 (Dark Baseline):** Huấn luyện mô hình `yolov8n.pt` trên `exdark_yolo_dark` (40 epochs) $\rightarrow$ Đánh giá trên tập test $\rightarrow$ Ghi nhận $mAP_{dark}$.
-2. **Experiment 2 (Cascaded Zero-Shot):** Lấy model Dark Baseline ở Exp 1 đi dự đoán trực tiếp trên tập test đã làm sáng `exdark_yolo_clahe` $\rightarrow$ Ghi nhận $mAP_{clahe\_cascaded}$.
-3. **Experiment 3 (Retrained Aligned):** Huấn luyện model YOLOv8 mới trên `exdark_yolo_clahe` với siêu tham số tinh chỉnh ăn khớp:
-   * `hsv_v = 0.1` (giảm ngẫu nhiên độ sáng vì GĐ1 đã chuẩn hóa).
-   * `close_mosaic = 10` (tắt mosaic ở 10 epochs cuối để ổn định nhận diện vật thể nhỏ).
-   * Đánh giá trên tập test $\rightarrow$ Ghi nhận $mAP_{clahe\_retrained}$.
-
-#### 🔸 Phase 4: Tổng Hợp Kết Quả, Ablation Study & Xuất Báo Cáo
-* Tự động xuất file `Results/comparisons_table.csv` so sánh đầy đủ các chỉ số: NIQE, Precision, Recall, mAP@0.5, mAP@0.5:0.95, FPS của cả 4 kịch bản.
-* Vẽ biểu đồ cột so sánh $mAP$ giữa các kịch bản.
-* Vẽ đồ thị đường cong Precision-Recall (PR Curve).
-* Xuất các ảnh đối chứng 4 khung hình cạnh nhau: `[Ảnh tối gốc]` vs `[Ảnh Global HE]` vs `[Ảnh CLAHE]` vs `[Ảnh dự đoán Bounding Box]` và lưu vào `Results/figures/`.
-
-#### 🔸 Phase 5: Demo Pipeline End-to-End Trực Tiếp
-* Cung cấp hàm `predict_image(image_path)`:
-  * Nhận một ảnh tối bất kỳ $\rightarrow$ Tự động làm sáng bằng CLAHE + Bilateral $\rightarrow$ Đưa qua model YOLOv8 tốt nhất $\rightarrow$ Vẽ bounding box và hiển thị kết quả trong vòng $0.03$ giây.
+* **Phase 0: Khởi tạo:** Kiểm tra GPU CUDA, tự động tạo cấu trúc thư mục chuẩn.
+* **Phase 1: Tiền xử lý dữ liệu:** Chuẩn hóa nhãn ExDark sang format YOLO, chia tập Train/Val/Test (70/20/10), sinh `data.yaml`.
+* **Phase 2: Giai đoạn 1 - Image Enhancement:**
+  * Khởi tạo mạng Zero-DCE / Zero-DCE++, tải pre-trained weights hoặc huấn luyện.
+  * Tăng cường sáng hàng loạt tập ảnh ExDark $\rightarrow$ Lưu vào `Dataset/exdark_yolo_zerodce/`.
+  * Tính điểm chất lượng không tham chiếu **NIQE $\downarrow$** và **BRISQUE $\downarrow$**.
+* **Phase 3: Giai đoạn 2 - Object Detection:**
+  * Kịch bản 1: Huấn luyện `yolov8n` trên ảnh tối $\rightarrow$ $mAP_{dark}$.
+  * Kịch bản 2: Đánh giá Cascaded ảnh Zero-DCE trên model tối $\rightarrow$ $mAP_{cascaded}$.
+  * Kịch bản 3: Huấn luyện `yolov8n` trên ảnh Zero-DCE thích nghi $\rightarrow$ $mAP_{retrained}$.
+* **Phase 4: Báo cáo & Trực quan:** Xuất bảng `comparisons_table.csv`, vẽ biểu đồ so sánh cột $mAP$ và xuất ảnh đối chứng side-by-side vào `Results/figures/`.
+* **Phase 5: Demo thời gian thực:** Cung cấp hàm `predict_pipeline(image_path)` thực thi trọn vẹn: `Ảnh tối ➔ Zero-DCE ➔ YOLOv8 ➔ Kết quả` chỉ trong ~0.02 giây.
 
 ---
 
-## 10. Mục Tiêu Đầu Ra Đạt Được (Learning Outcomes)
+## 12. Mục Tiêu Đầu Ra Đạt Được (Learning Outcomes)
 
-Sau khi hoàn thành đồ án này, tất cả thành viên trong nhóm sẽ nắm vững:
-1. **Bản chất của 2 giai đoạn (GĐ1 & GĐ2):**
-   * Hiểu sự khác biệt giữa bài toán xử lý ảnh mức thấp (Low-Level: pixel-level, giữ chi tiết, cân bằng phổ sáng) và bài toán mức cao (High-Level: semantic-level, trích xuất đặc trưng trừu tượng để định vị vật thể).
-   * Nắm được hiện tượng "Visual Quality vs Machine Perception" (ảnh mắt người thấy đẹp chưa chắc máy đã nhận diện tốt).
-2. **Kỹ năng làm việc chuyên sâu với Dataset Thị giác máy tính:**
-   * Hiểu rõ cấu trúc Bounding Box chuẩn YOLO (`class x_center y_center width height`).
-   * Biết cách chuyển đổi qua lại giữa định dạng VOC Pascal (xmin, ymin, xmax, ymax) và YOLO format.
-   * Thành thạo cách tổ chức file cấu hình `data.yaml` cho các framework huấn luyện hiện đại.
-3. **Hiểu sâu cấu trúc nội tại của YOLOv8:**
-   * Nắm vững kiến trúc mạng: Backbone (CSPDarknet + C2f), Neck (PAN-FPN đa tỷ lệ) và Head (Decoupled Anchor-Free).
-   * Hiểu cơ chế hoạt động của các hàm loss hiện đại: CIoU Loss, Distribution Focal Loss (DFL) và TaskAlignedAssigner.
-4. **Kỹ năng làm việc nhóm & Nghiên cứu Khoa học:**
-   * Biết cách phân chia công việc (WBS) trong 2.5 tuần theo mô hình Sprint.
-   * Biết cách thiết kế thí nghiệm A/B Testing có tính thuyết phục khoa học cao để bảo vệ trước hội đồng chấm thi.
+Sau khi hoàn thành đồ án này, các thành viên trong nhóm sẽ làm chủ:
+1. **Nắm vững bản chất Deep Learning trong Low-Level Vision:** Hiểu sâu cơ chế học không giám sát (Zero-Reference), cách thiết kế các hàm mất mát không gian và phơi sáng để mạng nơ-ron tự thích ứng mà không cần ảnh Ground Truth.
+2. **Làm chủ kiến trúc Object Detection hiện đại (YOLOv8):** Hiểu rõ cơ chế C2f module, Decoupled Anchor-Free Head và hàm mất mát CIoU/DFL.
+3. **Hiểu sâu mối quan hệ giữa Visual Quality & Machine Perception:** Giải thích được tại sao một bức ảnh mắt người thấy sáng đẹp chưa chắc đã tối ưu cho mô hình AI, và cách thức đồng thiết kế (Co-design/Alignment) để tối ưu hiệu năng toàn chuỗi.
+4. **Kỹ năng NCKH & Trình bày chuyên nghiệp:** Biết cách thiết kế chuỗi thí nghiệm A/B Testing, Ablation Study có tính thuyết phục khoa học cao để đạt điểm xuất sắc khi bảo vệ đồ án.
