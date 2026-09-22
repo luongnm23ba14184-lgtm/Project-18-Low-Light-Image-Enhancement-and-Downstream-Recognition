@@ -1,8 +1,10 @@
+# ExDark Dataset - Dark Baseline Configuration
+path: Dataset/exdark_yolo_dark
 train: train/images
 val: valid/images
 test: test/images
 
-names: 
+names:
   0: Bicycle
   1: Boat
   2: Bottle
